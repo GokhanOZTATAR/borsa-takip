@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode } from 'react';
 import { db } from '../services/db';
-import { Account, Transaction, Withdrawal, Deposit, PriceSnapshot } from '../types';
+import { Account, Transaction, Withdrawal, Deposit, PriceSnapshot, AppSettings } from '../types';
 import { generateId } from '../utils/helpers';
 
 interface DataContextType {
@@ -103,7 +103,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const importData = async (jsonData: string, overwrite: boolean = false) => {
     const data = JSON.parse(jsonData);
     
-    await db.transaction('rw', db.accounts, db.transactions, db.withdrawals, db.deposits, db.priceSnapshots, db.settings, async () => {
+    await db.transaction('rw', [db.accounts, db.transactions, db.withdrawals, db.deposits, db.priceSnapshots, db.settings], async () => {
       if (overwrite) {
         await Promise.all([
           db.accounts.clear(),
