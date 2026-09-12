@@ -22,7 +22,7 @@ const navItems = [
   { path: '/live', icon: Activity, label: 'Anlık Kar/Zarar' },
   { path: '/accounts', icon: Wallet, label: 'Hesaplarım' },
   { path: '/transactions', icon: ArrowRightLeft, label: 'İşlemler' },
-  { path: '/analysis', icon: PieChart, label: 'Hisse Analizi' },
+  { path: '/stocks', icon: PieChart, label: 'Hisse Analizi' },
   { path: '/movements', icon: CreditCard, label: 'Para Hareketleri' },
   { path: '/reports', icon: FileText, label: 'Raporlar' },
   { path: '/settings', icon: Settings, label: 'Ayarlar' },
