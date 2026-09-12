@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import { useData } from '../../context';
+import { useAccounts } from '../../hooks/useAccounts';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Account } from '../../types';
 
 interface AccountFormProps {
+  accountId?: string | null;
   onSuccess: () => void;
-  initialData?: Account;
 }
 
 const COLORS = [
   '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'
 ];
 
-export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, initialData }) => {
+export function AccountForm({ accountId, onSuccess }: AccountFormProps) {
   const { addAccount, updateAccount } = useData();
+  const { accounts } = useAccounts();
+  const initialData = accounts.find(a => a.id === accountId);
+
   const [name, setName] = useState(initialData?.name || '');
   const [broker, setBroker] = useState(initialData?.broker || '');
   const [description, setDescription] = useState(initialData?.description || '');
