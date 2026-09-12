@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTransactions } from '../hooks/useTransactions';
+import { useData } from '../context';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { formatCurrency } from '../utils/helpers';
-import { GripVertical, Edit } from 'lucide-react';
+import { Modal } from '../components/ui/Modal';
+import { formatCurrency, formatDate } from '../utils/helpers';
+import { GripVertical, Edit, Trash2, ArrowDownToLine, ArrowUpFromLine, ExternalLink } from 'lucide-react';
+import { Transaction } from '../types';
 
 export default function StockAnalysis() {
   const { transactions } = useTransactions();
+  const { deleteTransaction } = useData();
   const navigate = useNavigate();
 
   // Calculate summary
@@ -28,28 +32,25 @@ export default function StockAnalysis() {
 
   const allTickers = Object.keys(summaryMap);
   
-  // State for draggable order
   const [orderedTickers, setOrderedTickers] = useState<string[]>([]);
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   
   useEffect(() => {
     const savedOrder = localStorage.getItem('stockAnalysisOrder');
     if (savedOrder) {
       const parsed = JSON.parse(savedOrder);
-      // Merge new tickers that aren't in saved order
       const newTickers = allTickers.filter(t => !parsed.includes(t));
       setOrderedTickers([...parsed, ...newTickers]);
     } else {
       setOrderedTickers(allTickers);
     }
-  }, [allTickers.length]); // Only re-run if number of tickers changes
+  }, [allTickers.length]);
 
-  // Drag state
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
 
   const handleDragStart = (e: React.DragEvent, ticker: string) => {
     setDraggedItem(ticker);
     e.dataTransfer.effectAllowed = 'move';
-    // Small delay to allow drag image to render before applying opacity
     setTimeout(() => {
       const el = document.getElementById(`card-${ticker}`);
       if (el) el.style.opacity = '0.5';
@@ -71,14 +72,21 @@ export default function StockAnalysis() {
     
     if (draggedIdx !== -1 && targetIdx !== -1) {
       const newOrder = [...orderedTickers];
-      newOrder.splice(draggedIdx, 1); // Remove
-      newOrder.splice(targetIdx, 0, draggedItem); // Insert
+      newOrder.splice(draggedIdx, 1);
+      newOrder.splice(targetIdx, 0, draggedItem);
       setOrderedTickers(newOrder);
       localStorage.setItem('stockAnalysisOrder', JSON.stringify(newOrder));
     }
   };
 
+  const handleDeleteTransaction = async (id: string) => {
+    if (window.confirm('Bu işlemi silmek istediğinize emin misiniz?')) {
+      await deleteTransaction(id);
+    }
+  };
+
   const visibleTickers = orderedTickers.filter(t => summaryMap[t]);
+  const selectedTickerTransactions = selectedTicker ? transactions.filter(t => t.ticker === selectedTicker).sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()) : [];
 
   return (
     <div className="space-y-6">
@@ -86,16 +94,9 @@ export default function StockAnalysis() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Hisse Analizi</h2>
           <p className="text-slate-500">
-            Hisselerin özet performansı. <span className="hidden sm:inline">Kartları sürükleyerek yerlerini değiştirebilirsiniz. Hisseleri düzenlemek/silmek için 'İşlemler' sayfasına gidin.</span>
+            Hisselerin özet performansı ve detayları. Kartları sürükleyerek sıralayabilirsiniz.
           </p>
         </div>
-        <button 
-          onClick={() => navigate('/transactions')}
-          className="text-sm flex items-center gap-2 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors"
-        >
-          <Edit size={16} />
-          İşlemleri Düzenle
-        </button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -124,6 +125,12 @@ export default function StockAnalysis() {
                       <GripVertical className="text-slate-400 -ml-2" size={18} />
                       {ticker}
                     </CardTitle>
+                    <button 
+                      onClick={() => setSelectedTicker(ticker)}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 text-sm bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded"
+                    >
+                      <ExternalLink size={14} /> Detay
+                    </button>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm pt-2">
                     <div className="flex justify-between">
@@ -149,6 +156,53 @@ export default function StockAnalysis() {
       <p className="text-xs text-slate-400 mt-4 sm:hidden">
         Not: Mobilde kartların sırasını değiştirmek için basılı tutup sürükleyin.
       </p>
+
+      <Modal 
+        isOpen={!!selectedTicker} 
+        onClose={() => setSelectedTicker(null)} 
+        title={`${selectedTicker} Detaylı İşlem Geçmişi`}
+      >
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="px-4 py-3 font-medium">Tarih</th>
+                <th className="px-4 py-3 font-medium">İşlem</th>
+                <th className="px-4 py-3 font-medium text-right">Miktar</th>
+                <th className="px-4 py-3 font-medium text-right">Fiyat</th>
+                <th className="px-4 py-3 font-medium text-right">Toplam</th>
+                <th className="px-4 py-3 font-medium text-center">Sil</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selectedTickerTransactions.map(tx => (
+                <tr key={tx.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                  <td className="px-4 py-3 whitespace-nowrap">{formatDate(tx.transactionDate).split(' ')[0]}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      tx.type === 'BUY' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                    }`}>
+                      {tx.type === 'BUY' ? <><ArrowDownToLine size={12}/> ALIM</> : <><ArrowUpFromLine size={12}/> SATIM</>}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">{tx.quantity}</td>
+                  <td className="px-4 py-3 text-right">{formatCurrency(tx.pricePerUnit)}</td>
+                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(tx.totalAmount)}</td>
+                  <td className="px-4 py-3 text-center">
+                    <button 
+                      onClick={() => handleDeleteTransaction(tx.id)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors inline-block"
+                      title="Sil"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
     </div>
   );
 }

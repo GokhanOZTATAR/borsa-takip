@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react';
 import { useAccounts } from '../hooks/useAccounts';
 import { useCalculations } from '../hooks/useCalculations';
 import { usePriceSnapshots } from '../hooks/usePriceSnapshots';
+import { useBalances } from '../hooks/useBalances';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { AccountForm } from '../components/forms/AccountForm';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { formatCurrency } from '../utils/helpers';
 import { Plus, Edit2, Trash2, Wallet } from 'lucide-react';
 import { useData } from '../context';
 
@@ -15,6 +16,7 @@ export default function Accounts() {
   const { deleteAccount } = useData();
   const { openPositions } = useCalculations();
   const { snapshots } = usePriceSnapshots();
+  const { balances } = useBalances();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -112,9 +114,13 @@ export default function Accounts() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-end mt-4 space-y-4">
+                  <div className="space-y-1 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <div className="text-sm text-slate-500">Kullanılabilir Nakit Bakiye</div>
+                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(balances[account.id] || 0)}</div>
+                  </div>
                   <div className="space-y-1">
-                    <div className="text-sm text-slate-500">Mevcut Toplam Bakiye</div>
-                    <div className="text-2xl font-bold">{formatCurrency(metrics.totalValue)}</div>
+                    <div className="text-sm text-slate-500">Mevcut Toplam Hisse Değeri</div>
+                    <div className="text-xl font-bold">{formatCurrency(metrics.totalValue)}</div>
                   </div>
                   <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div className="text-sm text-slate-500">Anlık Bekleyen Kar/Zarar</div>

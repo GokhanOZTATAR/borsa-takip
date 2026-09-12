@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useAccounts } from '../../hooks/useAccounts';
 import { useData } from '../../context';
+import { useAccounts } from '../../hooks/useAccounts';
+import { useBalances } from '../../hooks/useBalances';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 
@@ -11,29 +12,41 @@ interface TransactionFormProps {
 export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) => {
   const { addTransaction } = useData();
   const { accounts } = useAccounts();
-  
+  const { balances } = useBalances();
+
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [type, setType] = useState<'BUY' | 'SELL'>('BUY');
   const [ticker, setTicker] = useState('');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
-  const [commission, setCommission] = useState('0');
+  const [commission, setCommission] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 16));
+  const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountId || !ticker || !quantity || !price || !date) {
+    setError('');
+
+    if (!accountId || !ticker || !quantity || !price) {
       setError('Lütfen zorunlu alanları doldurun.');
       return;
     }
 
     const qty = Number(quantity);
     const prc = Number(price);
-    const comm = Number(commission);
+    const comm = commission === '' ? 0 : Number(commission);
 
     if (qty <= 0 || prc <= 0) {
       setError('Adet ve fiyat 0\'dan büyük olmalıdır.');
+      return;
+    }
+
+    const totalCost = (qty * prc) + comm;
+    const currentBalance = balances[accountId] || 0;
+
+    if (type === 'BUY' && totalCost > currentBalance) {
+      setError(`Yetersiz bakiye! Bu işlem için ${totalCost.toLocaleString('tr-TR')} ₺ gerekiyor ancak hesabınızda ${currentBalance.toLocaleString('tr-TR')} ₺ nakit var. Önce 'Para Hareketleri'nden nakit yatırın.`);
       return;
     }
 
