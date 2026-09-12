@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAccounts } from '../hooks/useAccounts';
 import { useData } from '../context';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -8,11 +8,11 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { formatCurrency, formatDate } from '../utils/helpers';
-import { Plus, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { Plus, ArrowDownToLine, ArrowUpFromLine, Trash2, Edit2 } from 'lucide-react';
 
 export default function Movements() {
   const { accounts } = useAccounts();
-  const { addDeposit, addWithdrawal } = useData();
+  const { addDeposit, updateDeposit, deleteDeposit, addWithdrawal, updateWithdrawal, deleteWithdrawal } = useData();
   
   const deposits = useLiveQuery(() => db.deposits.orderBy('date').reverse().toArray()) || [];
   const withdrawals = useLiveQuery(() => db.withdrawals.orderBy('date').reverse().toArray()) || [];
@@ -21,24 +21,66 @@ export default function Movements() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [type, setType] = useState<'DEPOSIT' | 'WITHDRAWAL'>('DEPOSIT');
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 16));
   const [notes, setNotes] = useState('');
 
+  const openModal = (movement?: any) => {
+    if (movement) {
+      setEditingId(movement.id);
+      setType(movement.type);
+      setAccountId(movement.accountId);
+      setAmount(movement.amount.toString());
+      // Ensure date is in proper datetime-local format
+      const dateObj = new Date(movement.date);
+      const localIso = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      setDate(localIso);
+      setNotes(movement.notes || '');
+    } else {
+      setEditingId(null);
+      setType('DEPOSIT');
+      setAccountId(accounts[0]?.id || '');
+      setAmount('');
+      const dateObj = new Date();
+      const localIso = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      setDate(localIso);
+      setNotes('');
+    }
+    setIsModalOpen(true);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountId || !amount) return;
     
-    if (type === 'DEPOSIT') {
-      await addDeposit({ accountId, amount: Number(amount), date: new Date(date).toISOString(), notes });
+    if (editingId) {
+      if (type === 'DEPOSIT') {
+        await updateDeposit(editingId, { accountId, amount: Number(amount), date: new Date(date).toISOString(), notes });
+      } else {
+        await updateWithdrawal(editingId, { accountId, amount: Number(amount), date: new Date(date).toISOString(), notes });
+      }
     } else {
-      await addWithdrawal({ accountId, amount: Number(amount), date: new Date(date).toISOString(), notes });
+      if (type === 'DEPOSIT') {
+        await addDeposit({ accountId, amount: Number(amount), date: new Date(date).toISOString(), notes });
+      } else {
+        await addWithdrawal({ accountId, amount: Number(amount), date: new Date(date).toISOString(), notes });
+      }
     }
+    
     setIsModalOpen(false);
-    setAmount('');
-    setNotes('');
+  };
+
+  const handleDelete = async (id: string, mType: 'DEPOSIT' | 'WITHDRAWAL') => {
+    if (window.confirm('Bu hareketi silmek istediğinize emin misiniz?')) {
+      if (mType === 'DEPOSIT') {
+        await deleteDeposit(id);
+      } else {
+        await deleteWithdrawal(id);
+      }
+    }
   };
 
   const getAccountName = (id: string) => accounts.find(a => a.id === id)?.name || 'Bilinmeyen';
@@ -48,18 +90,18 @@ export default function Movements() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Para Hareketleri</h2>
           <p className="text-slate-500">Hesaplarınıza giren ve çıkan nakit akışını takip edin.</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+        <Button onClick={() => openModal()} className="gap-2 shrink-0">
           <Plus size={16} />
           Hareket Ekle
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-500">Toplam Yatırılan</CardTitle>
@@ -98,16 +140,17 @@ export default function Movements() {
                 <th className="px-4 py-3 font-medium">Hesap</th>
                 <th className="px-4 py-3 font-medium">Not</th>
                 <th className="px-4 py-3 font-medium text-right">Tutar</th>
+                <th className="px-4 py-3 font-medium text-right">İşlem</th>
               </tr>
             </thead>
             <tbody>
               {allMovements.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                 </tr>
               ) : (
                 allMovements.map(m => (
-                  <tr key={m.id} className="border-b border-slate-100 dark:border-slate-800/50">
+                  <tr key={m.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/20">
                     <td className="px-4 py-3 whitespace-nowrap">{formatDate(m.date)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -117,9 +160,27 @@ export default function Movements() {
                       </span>
                     </td>
                     <td className="px-4 py-3">{getAccountName(m.accountId)}</td>
-                    <td className="px-4 py-3 text-slate-500">{m.notes || '-'}</td>
+                    <td className="px-4 py-3 text-slate-500 max-w-[150px] truncate" title={m.notes}>{m.notes || '-'}</td>
                     <td className={`px-4 py-3 text-right font-medium ${m.type === 'DEPOSIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                       {m.type === 'DEPOSIT' ? '+' : '-'}{formatCurrency(m.amount)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => openModal(m)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title="Düzenle"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(m.id, m.type as any)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                          title="Sil"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -129,20 +190,22 @@ export default function Movements() {
         </div>
       </Card>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Para Hareketi Ekle">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Para Hareketini Düzenle" : "Para Hareketi Ekle"}>
         <form onSubmit={handleSave} className="space-y-4">
           <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
             <button
               type="button"
               onClick={() => setType('DEPOSIT')}
-              className={`flex-1 py-2 rounded-md font-medium text-sm transition-colors ${type === 'DEPOSIT' ? 'bg-green-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}
+              disabled={!!editingId} // Don't allow changing type while editing
+              className={`flex-1 py-2 rounded-md font-medium text-sm transition-colors ${type === 'DEPOSIT' ? 'bg-green-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'} ${editingId ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               YATIRMA
             </button>
             <button
               type="button"
               onClick={() => setType('WITHDRAWAL')}
-              className={`flex-1 py-2 rounded-md font-medium text-sm transition-colors ${type === 'WITHDRAWAL' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}
+              disabled={!!editingId}
+              className={`flex-1 py-2 rounded-md font-medium text-sm transition-colors ${type === 'WITHDRAWAL' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'} ${editingId ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               ÇEKME
             </button>
@@ -154,7 +217,9 @@ export default function Movements() {
               className="w-full h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
               value={accountId}
               onChange={e => setAccountId(e.target.value)}
+              required
             >
+              <option value="" disabled>Hesap Seçin</option>
               {accounts.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -187,7 +252,7 @@ export default function Movements() {
           />
 
           <div className="pt-4 flex justify-end">
-            <Button type="submit">Kaydet</Button>
+            <Button type="submit">{editingId ? "Güncelle" : "Kaydet"}</Button>
           </div>
         </form>
       </Modal>

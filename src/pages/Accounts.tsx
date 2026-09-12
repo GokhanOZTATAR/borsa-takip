@@ -1,99 +1,145 @@
-import React, { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAccounts } from '../hooks/useAccounts';
-import { useData } from '../context';
+import { useCalculations } from '../hooks/useCalculations';
+import { usePriceSnapshots } from '../hooks/usePriceSnapshots';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
 import { AccountForm } from '../components/forms/AccountForm';
+import { formatCurrency, formatDate } from '../utils/helpers';
 import { Plus, Edit2, Trash2, Wallet } from 'lucide-react';
-import { Account } from '../types';
+import { useData } from '../context';
 
 export default function Accounts() {
   const { accounts } = useAccounts();
   const { deleteAccount } = useData();
+  const { openPositions } = useCalculations();
+  const { snapshots } = usePriceSnapshots();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<Account | undefined>(undefined);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const handleEdit = (acc: Account) => {
-    setEditingAccount(acc);
+  const openModal = (id?: string) => {
+    setEditingId(id || null);
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Bu hesabı silmek istediğinize emin misiniz?')) {
+    if (window.confirm('Bu hesabı silmek istediğinize emin misiniz? (İşlemleriniz silinmez, hesap arşivlenir)')) {
       await deleteAccount(id);
     }
   };
 
-  const openNewModal = () => {
-    setEditingAccount(undefined);
-    setIsModalOpen(true);
-  };
+  // Calculate latest prices
+  const latestPrices = useMemo(() => {
+    const map: Record<string, number> = {};
+    snapshots.forEach(s => {
+      if (!map[s.ticker]) {
+        map[s.ticker] = s.price;
+      }
+    });
+    return map;
+  }, [snapshots]);
+
+  // Calculate account metrics
+  const accountMetrics = useMemo(() => {
+    const metrics: Record<string, { totalValue: number; totalCost: number; pnl: number }> = {};
+    
+    accounts.forEach(acc => {
+      metrics[acc.id] = { totalValue: 0, totalCost: 0, pnl: 0 };
+    });
+
+    openPositions.forEach(pos => {
+      if (metrics[pos.accountId]) {
+        const currentPrice = latestPrices[pos.ticker] || pos.averageCost;
+        const val = pos.quantity * currentPrice;
+        const cost = pos.quantity * pos.averageCost;
+        
+        metrics[pos.accountId].totalValue += val;
+        metrics[pos.accountId].totalCost += cost;
+        metrics[pos.accountId].pnl += (val - cost);
+      }
+    });
+    
+    return metrics;
+  }, [openPositions, latestPrices, accounts]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Hesaplar</h2>
-          <p className="text-slate-500">Portföyünüzü yönettiğiniz aracı kurum hesapları.</p>
+          <h2 className="text-2xl font-bold tracking-tight">Hesaplarım</h2>
+          <p className="text-slate-500">Aracı kurum ve banka hesaplarınızı yönetin.</p>
         </div>
-        <Button onClick={openNewModal} className="gap-2">
+        <Button onClick={() => openModal()} className="gap-2 shrink-0">
           <Plus size={16} />
-          Hesap Ekle
+          Yeni Hesap Ekle
         </Button>
       </div>
 
-      {accounts.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
-          <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800 mb-4">
-            <Wallet size={32} className="text-slate-400" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {accounts.length === 0 ? (
+          <div className="col-span-full py-12 text-center text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+            <Wallet className="mx-auto h-12 w-12 text-slate-400 mb-3" />
+            <p className="text-lg font-medium text-slate-900 dark:text-slate-100">Henüz hesap eklemediniz</p>
+            <p className="mt-1">İşlem yapmaya başlamak için ilk hesabınızı ekleyin.</p>
+            <Button onClick={() => openModal()} className="mt-4" variant="outline">Hesap Ekle</Button>
           </div>
-          <h3 className="text-lg font-semibold mb-2">Henüz hesap eklemediniz</h3>
-          <p className="text-slate-500 mb-6 max-w-sm">İşlem yapmaya başlamak için önce bir aracı kurum hesabı oluşturun.</p>
-          <Button onClick={openNewModal}>Hesap Ekle</Button>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {accounts.map(acc => (
-            <Card key={acc.id} className="overflow-hidden">
-              <div className="h-2 w-full" style={{ backgroundColor: acc.color }} />
-              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                <div>
-                  <CardTitle className="text-xl">{acc.name}</CardTitle>
-                  <p className="text-sm text-slate-500 mt-1">{acc.broker}</p>
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => handleEdit(acc)} className="p-2 text-slate-400 hover:text-blue-500 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                    <Edit2 size={16} />
-                  </button>
-                  <button onClick={() => handleDelete(acc.id)} className="p-2 text-slate-400 hover:text-red-500 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {acc.description && <p className="text-sm text-slate-500 mb-4">{acc.description}</p>}
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Durum</span>
-                  <span className="font-medium text-green-600 dark:text-green-400">Aktif</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+        ) : (
+          accounts.map(account => {
+            const metrics = accountMetrics[account.id];
+            
+            return (
+              <Card key={account.id} className="flex flex-col border-l-4" style={{ borderLeftColor: account.color }}>
+                <CardHeader className="pb-2 flex-row items-start justify-between space-y-0">
+                  <div>
+                    <CardTitle className="text-lg">{account.name}</CardTitle>
+                    <CardDescription>{account.brokerName}</CardDescription>
+                  </div>
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={() => openModal(account.id)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      title="Düzenle"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(account.id)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      title="Sil"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col justify-end mt-4 space-y-4">
+                  <div className="space-y-1">
+                    <div className="text-sm text-slate-500">Mevcut Toplam Bakiye</div>
+                    <div className="text-2xl font-bold">{formatCurrency(metrics.totalValue)}</div>
+                  </div>
+                  <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="text-sm text-slate-500">Anlık Bekleyen Kar/Zarar</div>
+                    <div className={`text-lg font-bold ${metrics.pnl > 0 ? 'text-green-600' : metrics.pnl < 0 ? 'text-red-600' : ''}`}>
+                      {metrics.pnl > 0 ? '+' : ''}{formatCurrency(metrics.pnl)}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
 
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        title={editingAccount ? "Hesabı Düzenle" : "Yeni Hesap Ekle"}
+        title={editingId ? "Hesabı Düzenle" : "Yeni Hesap Ekle"}
       >
         <AccountForm 
-          initialData={editingAccount} 
+          accountId={editingId} 
           onSuccess={() => setIsModalOpen(false)} 
         />
       </Modal>
     </div>
   );
 }
-// Add import for Wallet icon above, missed it initially.

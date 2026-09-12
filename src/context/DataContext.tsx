@@ -14,7 +14,11 @@ interface DataContextType {
   addPriceSnapshot: (snap: Omit<PriceSnapshot, 'id'>) => Promise<string>;
   
   addWithdrawal: (w: Omit<Withdrawal, 'id' | 'createdAt'>) => Promise<string>;
+  updateWithdrawal: (id: string, updates: Partial<Withdrawal>) => Promise<number>;
+  deleteWithdrawal: (id: string) => Promise<void>;
   addDeposit: (d: Omit<Deposit, 'id' | 'createdAt'>) => Promise<string>;
+  updateDeposit: (id: string, updates: Partial<Deposit>) => Promise<number>;
+  deleteDeposit: (id: string) => Promise<void>;
   
   exportData: () => Promise<string>;
   importData: (jsonData: string, overwrite?: boolean) => Promise<void>;
@@ -78,6 +82,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     return id;
   };
 
+  const updateWithdrawal = async (id: string, updates: Partial<Withdrawal>) => {
+    return await db.withdrawals.update(id, updates);
+  };
+
+  const deleteWithdrawal = async (id: string) => {
+    await db.withdrawals.delete(id);
+  };
+
   const addDeposit = async (d: Omit<Deposit, 'id' | 'createdAt'>) => {
     const id = generateId();
     await db.deposits.add({
@@ -86,6 +98,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       createdAt: new Date().toISOString()
     });
     return id;
+  };
+
+  const updateDeposit = async (id: string, updates: Partial<Deposit>) => {
+    return await db.deposits.update(id, updates);
+  };
+
+  const deleteDeposit = async (id: string) => {
+    await db.deposits.delete(id);
   };
 
   const exportData = async () => {
@@ -150,7 +170,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       addAccount, updateAccount, deleteAccount,
       addTransaction, deleteTransaction,
       addPriceSnapshot,
-      addWithdrawal, addDeposit,
+      addWithdrawal, updateWithdrawal, deleteWithdrawal, 
+      addDeposit, updateDeposit, deleteDeposit,
       exportData, importData, resetData
     }}>
       {children}

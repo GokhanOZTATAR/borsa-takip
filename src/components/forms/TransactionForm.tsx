@@ -46,7 +46,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) =
         quantity: qty,
         pricePerUnit: prc,
         totalAmount: qty * prc,
-        commission: comm,
+        commission: commission === '' ? 0 : Number(commission),
         transactionDate: new Date(date).toISOString(),
       });
       onSuccess();
@@ -127,6 +127,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) =
           step="0.01"
           value={commission}
           onChange={e => setCommission(e.target.value)}
+          placeholder="0.00"
         />
         <Input
           label="Tarih"

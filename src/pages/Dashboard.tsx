@@ -65,36 +65,37 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">Toplam Portföy Değeri</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-500">Güncel Portföy Değeri</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{formatCurrency(totalPortfolioValue)}</div>
-            <p className="text-sm text-slate-500 mt-1">Sadece fiyatı girilmiş/maliyeti olan açık pozisyonlar</p>
+            <p className="text-sm text-slate-500 mt-1">Açık hisselerinizin anlık toplam değeri</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">Gerçekleşmiş Kar/Zarar</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-500">Aktif Yatırım Maliyeti</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-3xl font-bold ${realizedPnL > 0 ? 'text-green-600' : realizedPnL < 0 ? 'text-red-600' : ''}`}>
-              {realizedPnL > 0 ? '+' : ''}{formatCurrency(realizedPnL)}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">Kapatılan pozisyonlardan elde edilen net sonuç</p>
+            <div className="text-3xl font-bold">{formatCurrency(totalCost)}</div>
+            <p className="text-sm text-slate-500 mt-1">Açık pozisyonlarınız için bağlanan ana para</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">Anlık Bekleyen Kar/Zarar</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-500">Anlık (Bekleyen) Kar/Zarar</CardTitle>
           </CardHeader>
           <CardContent>
             <div className={`text-3xl font-bold ${unrealizedPnL > 0 ? 'text-green-600' : unrealizedPnL < 0 ? 'text-red-600' : ''}`}>
               {unrealizedPnL > 0 ? '+' : ''}{formatCurrency(unrealizedPnL)}
             </div>
-            <p className="text-sm text-slate-500 mt-1">
-              {unrealizedPnLPercent > 0 ? '+' : ''}{formatNumber(unrealizedPnLPercent)}% açık pozisyon getirisi
+            <p className="text-sm mt-1 font-medium">
+              <span className={unrealizedPnLPercent > 0 ? 'text-green-600' : unrealizedPnLPercent < 0 ? 'text-red-600' : 'text-slate-500'}>
+                {unrealizedPnLPercent > 0 ? '+' : ''}{formatNumber(unrealizedPnLPercent)}% 
+              </span>
+              <span className="text-slate-500"> getiri oranı (anlık fiyatlara göre)</span>
             </p>
           </CardContent>
         </Card>
