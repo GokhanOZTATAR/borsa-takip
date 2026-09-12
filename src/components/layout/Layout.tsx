@@ -1,5 +1,5 @@
-import { ReactNode, useState, useEffect } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth, useTheme } from '../../context';
 import { 
   LayoutDashboard, 
@@ -17,10 +17,6 @@ import {
   FileText
 } from 'lucide-react';
 
-interface LayoutProps {
-  children: ReactNode;
-}
-
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/live', icon: Activity, label: 'Anlık Kar/Zarar' },
@@ -32,7 +28,7 @@ const navItems = [
   { path: '/settings', icon: Settings, label: 'Ayarlar' },
 ];
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout() {
   const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -44,7 +40,6 @@ export default function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
@@ -152,7 +147,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto pt-16 md:pt-0 p-4 md:p-8">
         <div className="max-w-7xl mx-auto pb-20 md:pb-0">
-          {children}
+          <Outlet />
         </div>
       </main>
     </div>

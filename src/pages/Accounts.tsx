@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useAccounts } from '../hooks/useAccounts';
 import { useCalculations } from '../hooks/useCalculations';
 import { usePriceSnapshots } from '../hooks/usePriceSnapshots';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { AccountForm } from '../components/forms/AccountForm';
@@ -93,7 +93,6 @@ export default function Accounts() {
                 <CardHeader className="pb-2 flex-row items-start justify-between space-y-0">
                   <div>
                     <CardTitle className="text-lg">{account.name}</CardTitle>
-                    <CardDescription>{account.brokerName}</CardDescription>
                   </div>
                   <div className="flex gap-1">
                     <button 
